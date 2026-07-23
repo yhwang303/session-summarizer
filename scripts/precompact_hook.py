@@ -102,9 +102,21 @@ def _build_additional_context(
     )
 
 
+def _parse_host_arg() -> str:
+    """Return the host id passed via `--host <name>`, default 'claude'."""
+    argv = sys.argv[1:]
+    for i, a in enumerate(argv):
+        if a == "--host" and i + 1 < len(argv):
+            return argv[i + 1].lower()
+        if a.startswith("--host="):
+            return a.split("=", 1)[1].lower()
+    return "claude"
+
+
 def main() -> int:
     payload = _read_stdin_payload()
-    session_id = str(payload.get("session_id") or "unknown")
+    session_id = str(payload.get("session_id") or payload.get("conversation_id") or "unknown")
+    host = _parse_host_arg()
 
     try:
         trigger = str(payload.get("trigger") or "auto").lower()
@@ -112,13 +124,13 @@ def main() -> int:
             trigger = "auto"
 
         if trigger == "manual":
-            _log(session_id, "skip: manual /compact")
+            _log(session_id, f"skip: manual /compact (host={host})")
             _emit({})
             return 0
 
-        cwd = str(payload.get("cwd") or os.getcwd())
+        cwd = str(payload.get("cwd") or (payload.get("workspace_roots") or [os.getcwd()])[0])
         project_root = locate_project_root(cwd)
-        ide = detect_ide(payload)
+        ide = detect_ide(payload) if host == "claude" else host
 
         if not TEMPLATE_PATH.exists():
             _log(session_id, f"template missing: {TEMPLATE_PATH}")
@@ -126,15 +138,30 @@ def main() -> int:
             return 0
 
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8")
-        ctx = _build_additional_context(template_text, session_id, project_root, ide)
 
+        if host == "cursor":
+            # Cursor's preCompact is observe-only: we can't inject additionalContext.
+            # Best we can do is surface a user-visible message nudging the manual path.
+            usage = payload.get("context_usage_percent")
+            usage_str = f"（当前上下文 {usage}%）" if usage is not None else ""
+            msg = (
+                f"⚠️ Cursor 即将自动压缩上下文{usage_str}。压缩后细节可能丢失。\n"
+                f"如果这次会话你还想稍后接盘，请立即运行 /session-summarizer 手动写一份九段式总结到 "
+                f"{project_root.as_posix()}/.claude/sessions/。"
+            )
+            _emit({"user_message": msg})
+            _log(session_id, f"emitted cursor user_message (project={project_root})")
+            return 0
+
+        # Claude Code / CodeBuddy / WorkBuddy / Codex Desktop shape
+        ctx = _build_additional_context(template_text, session_id, project_root, ide)
         _emit({
             "hookSpecificOutput": {
                 "hookEventName": "PreCompact",
                 "additionalContext": ctx,
             }
         })
-        _log(session_id, f"injected additionalContext (ide={ide}, project={project_root})")
+        _log(session_id, f"injected additionalContext (host={host}, ide={ide}, project={project_root})")
         return 0
 
     except Exception:
