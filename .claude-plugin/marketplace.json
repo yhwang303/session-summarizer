@@ -1,0 +1,17 @@
+{
+  "name": "session-summarizer",
+  "owner": "yhwang303",
+  "description": "Auto-summarize your session with Anthropic's 9-section template before context compaction.",
+  "plugins": [
+    {
+      "name": "session-summarizer",
+      "source": ".",
+      "description": "Nine-section session summary triggered by PreCompact hook or /session-summarizer.",
+      "version": "0.1.0",
+      "author": {
+        "name": "yhwang303"
+      },
+      "keywords": ["compaction", "session", "hooks", "context"]
+    }
+  ]
+}

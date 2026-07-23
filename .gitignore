@@ -1,0 +1,29 @@
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python bytecode from the hook scripts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local backups produced by the installer
+*.bak-*
+
+# Ignore any test sandboxes accidentally left behind
+.sandbox/
+tmp/
+.tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Never commit user session outputs
+.claude/sessions/

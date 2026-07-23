@@ -1,0 +1,26 @@
+{
+  "name": "session-summarizer",
+  "displayName": "Session Summarizer",
+  "description": "Auto-summarize your session with Anthropic's 9-section template before context compaction. Falls back to /session-summarizer for manual runs.",
+  "version": "0.1.0",
+  "author": "yhwang303",
+  "license": "MIT",
+  "homepage": "https://github.com/yhwang303/session-summarizer",
+  "commands": [
+    "./commands/session-summarizer.md"
+  ],
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/scripts/precompact_hook.py\"",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}

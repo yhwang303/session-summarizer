@@ -1,0 +1,12 @@
+# Codex Desktop hook config (TOML variant)
+#
+# Merge into ~/.codex/config.toml. Do not overwrite existing [[hooks.PreCompact]]
+# entries — TOML allows multiple array-of-tables blocks with the same key, so
+# just append this whole block. After first launch, open /hooks and trust the
+# script.
+
+[[hooks.PreCompact]]
+matcher = "auto"
+timeout = 60000
+type = "command"
+command = 'python "D:/.agents/plugins/session-summarizer/scripts/precompact_hook.py"'

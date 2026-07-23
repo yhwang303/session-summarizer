@@ -1,0 +1,17 @@
+{
+  "_comment": "Codex Desktop supports hooks in JSON. Merge THIS into ~/.codex/hooks.json under hooks.PreCompact. After first launch, open the /hooks panel in Codex and trust the script. If you prefer TOML, use install-templates/codex.config.toml instead.",
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"D:/.agents/plugins/session-summarizer/scripts/precompact_hook.py\"",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}

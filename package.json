@@ -1,0 +1,50 @@
+{
+  "name": "session-summarizer",
+  "version": "0.1.0",
+  "description": "Auto-summarize your AI coding session with Anthropic's 9-section template before context compaction. Cross-IDE: Claude Code / Cursor / CodeBuddy / WorkBuddy / Codex Desktop.",
+  "type": "module",
+  "bin": {
+    "session-summarizer": "bin/cli.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "commands/",
+    "scripts/",
+    "templates/",
+    "install-templates/",
+    ".claude-plugin/",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude-code",
+    "cursor",
+    "codex",
+    "codebuddy",
+    "workbuddy",
+    "precompact",
+    "session-summary",
+    "context-compaction",
+    "hooks",
+    "ai-coding"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yhwang303/session-summarizer"
+  },
+  "bugs": {
+    "url": "https://github.com/yhwang303/session-summarizer/issues"
+  },
+  "homepage": "https://github.com/yhwang303/session-summarizer#readme",
+  "license": "MIT",
+  "author": "yhwang303",
+  "scripts": {
+    "test": "node bin/cli.mjs doctor",
+    "test:install": "node bin/cli.mjs install --dry-run"
+  }
+}

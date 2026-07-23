@@ -1,0 +1,17 @@
+{
+  "_comment": "Cursor uses camelCase event names. Merge into <project>/.cursor/hooks.json (project-level) or the equivalent global path Cursor documents. Do not overwrite existing preCompact array — append.",
+  "hooks": {
+    "preCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"D:/.agents/plugins/session-summarizer/scripts/precompact_hook.py\"",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_comment": "Merge THIS into ~/.codebuddy/settings.json under hooks.PreCompact. CodeBuddy follows the Claude Code hook spec. Do not overwrite — append.",
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"D:/.agents/plugins/session-summarizer/scripts/precompact_hook.py\"",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}

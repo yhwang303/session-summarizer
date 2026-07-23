@@ -1,0 +1,17 @@
+{
+  "_comment": "Merge THIS into ~/.claude/settings.json under hooks.PreCompact. Do not overwrite existing PreCompact entries — append to the array.",
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"D:/.agents/plugins/session-summarizer/scripts/precompact_hook.py\"",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}
