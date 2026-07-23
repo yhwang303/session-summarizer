@@ -1,7 +1,7 @@
 ---
 description: 按 Anthropic 九段式模板总结当前会话，落盘到 <project>/.claude/sessions/
 argument-hint: [--dry-run] [--title "自定义标题"]
-allowed-tools: Read, Write, Bash(python:*)
+allowed-tools: Read, Write, Bash(python:*), Bash(python3:*)
 ---
 
 你需要按九段式总结当前整个会话，落盘为一份可跨 session / 跨 IDE 复用的 markdown。
@@ -11,32 +11,28 @@ allowed-tools: Read, Write, Bash(python:*)
 用 Read 工具读取以下文件，严格遵守其中所有规则（尤其是 §6 逐字保留用户消息、§9 必须引用最近一条用户消息）：
 
 ```
-D:/.agents/plugins/session-summarizer/templates/nine-section-template.md
+{{PLUGIN_ROOT}}/templates/nine-section-template.md
 ```
 
 ## 第 2 步：产出九段式内容
 
-按模板 9 个段落顺序完整输出。**不要输出到聊天窗口给用户看**，而是直接写入临时文件（这样 write_summary.py 才能校验和落盘）：
+按模板 9 个段落顺序完整输出。**不要输出到聊天窗口给用户看**，直接用 Write 工具写到一个临时 .md 文件里：
 
-```bash
-# 举例：把内容写到临时文件
-python -c "import sys; open(r'C:\Users\milkwang\AppData\Local\Temp\session-summary-<session_id>.md','w',encoding='utf-8').write(sys.stdin.read())"
-```
-
-或者直接用 Write 工具写到该临时路径。**文件名里 `<session_id>` 用当前 session_id**。
+- macOS / Linux: `/tmp/session-summary-<session_id>.md`
+- Windows: `%TEMP%\session-summary-<session_id>.md`
 
 **关键约束**：
-- 每一段的 `## N. Title / 中文` 标题必须一字不差，否则校验会失败
+- 每段 `## N. Title / 中文` 标题必须一字不差，否则校验会失败
 - §6 里逐字保留所有非 tool-result 的用户消息，不要改写、翻译、合并
 - §9 必须引用最近一条用户消息原话；如果最近消息没暗示下一步，写"待用户确认"
 - 不要凭空编造用户没要求过的任务
 
 ## 第 3 步：落盘
 
-调用 write_summary.py 落盘并更新 index：
+调用 write_summary.py 落盘并更新 index。请使用你所在平台可用的 Python 命令（`python3` 优先，其次 `python`）：
 
 ```bash
-python "D:/.agents/plugins/session-summarizer/scripts/write_summary.py" \
+python3 "{{PLUGIN_ROOT}}/scripts/write_summary.py" \
   --session-id "<当前 session_id>" \
   --project "<当前项目根>" \
   --content "<第 2 步的临时文件路径>" \
