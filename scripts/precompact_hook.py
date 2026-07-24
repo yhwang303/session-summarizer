@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
-"""PreCompact hook：注入九段式模板 + 落盘指令，让当前会话模型自己写总结。
+"""PreCompact hook：按宿主分两种行为。
 
-I/O 契约（Claude Code / Cursor / CodeBuddy / WorkBuddy / Codex 桌面版共用）：
-  stdin  : {"hook_event_name":"PreCompact","session_id":"...",
-           "transcript_path":"...","cwd":"...","trigger":"auto"|"manual"}
-  stdout : 单个 JSON，含 hookSpecificOutput.additionalContext
-  exit   : 出错永远 0，避免打断 IDE
+- Claude Code / CodeBuddy / WorkBuddy / Codex Desktop
+    stdin  : {"hook_event_name":"PreCompact","session_id":"...",
+             "transcript_path":"...","cwd":"...","trigger":"auto"|"manual"}
+    stdout : {"hookSpecificOutput":{"hookEventName":"PreCompact",
+             "additionalContext":"<九段模板+落盘指令>"}}
+    效果   : 模型先按模板写摘要落盘，然后再让宿主继续 compact。可拦截。
 
-设计约束：
-- 只在 trigger == "auto" 时注入；手动 /compact 用户自己知道在做什么，不打扰
-- hook 不起 LLM 调用；靠 additionalContext 让主会话模型自己走一遍 slash command
-- 任何异常都吞掉，输出 {} + exit 0
+- Cursor（通过 CLI 参数 --host cursor 启用）
+    stdin  : Cursor preCompact payload（conversation_id / workspace_roots /
+             context_usage_percent / is_first_compaction 等，见官方文档）
+    stdout : {"user_message":"<提示文字>"}
+    效果   : 仅观察型 hook。官方明确 "cannot block or modify the compaction
+             behavior"，所以我们只能在压缩发生时显示提示，让用户下次早点手
+             动跑 /session-summarizer。additionalContext / decision / block 等
+             字段在 Cursor 上都不生效，不要试图注入。
+
+通用规则：
+- 只在 trigger == "auto" 时输出，手动 /compact 用户自己知道在做什么
+- 出错永远 exit 0，避免打断宿主
+- 日志写 ~/.claude/state/session-summarizer/<sid>.log，不占 stdout
 """
 from __future__ import annotations
 
@@ -140,17 +150,35 @@ def main() -> int:
         template_text = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         if host == "cursor":
-            # Cursor's preCompact is observe-only: we can't inject additionalContext.
-            # Best we can do is surface a user-visible message nudging the manual path.
+            # Cursor's preCompact is documented as observe-only:
+            #   "This is an observational hook that cannot block or modify the
+            #    compaction behavior."
+            # (https://cursor.com/docs/agent/third-party-hooks)
+            #
+            # That means by the time our hook fires, the compaction is already
+            # committed and the model can't be re-steered via `additionalContext`
+            # (which the doc does not accept anyway — only `user_message` is
+            # documented). So we don't try to inject the 9-section prompt here.
+            # Instead we surface a user_message pointing at the sessions dir and
+            # nudging them to run /session-summarizer *earlier* next time.
             usage = payload.get("context_usage_percent")
-            usage_str = f"（当前上下文 {usage}%）" if usage is not None else ""
+            first = bool(payload.get("is_first_compaction"))
+            sessions_dir = f"{project_root.as_posix()}/.claude/sessions/"
+
+            head = "ℹ️" if first else "⚠️"
+            usage_str = f"（上下文 {usage}%）" if usage is not None else ""
+            when = "首次自动压缩" if first else "又一次自动压缩"
+
             msg = (
-                f"⚠️ Cursor 即将自动压缩上下文{usage_str}。压缩后细节可能丢失。\n"
-                f"如果这次会话你还想稍后接盘，请立即运行 /session-summarizer 手动写一份九段式总结到 "
-                f"{project_root.as_posix()}/.claude/sessions/。"
+                f"{head} Cursor 正在执行{when}{usage_str}。\n"
+                f"Cursor 的 preCompact 钩子是仅观察型，无法阻塞压缩，"
+                f"因此这次的细节可能已经丢失。\n"
+                f"想让下次能跨 session 接盘，请在上下文占用约 60-70% 时"
+                f"主动跑 /session-summarizer，把九段式总结落盘到：\n"
+                f"  {sessions_dir}"
             )
             _emit({"user_message": msg})
-            _log(session_id, f"emitted cursor user_message (project={project_root})")
+            _log(session_id, f"emitted cursor user_message (usage={usage}, first={first}, project={project_root})")
             return 0
 
         # Claude Code / CodeBuddy / WorkBuddy / Codex Desktop shape
