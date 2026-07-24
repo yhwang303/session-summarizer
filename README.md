@@ -11,7 +11,7 @@
 
 **What this does**: A `PreCompact` hook fires **before** the system compacts. It injects Anthropic's 9-section template (from Claude Code's own `BASE_COMPACT_PROMPT`) into the model's context, so the model writes a full structured summary **first**, saves it to `<project>/summary/sessions/`, then lets compaction proceed.
 
-Works with **Claude Code · Claude Internal · CodeBuddy · WorkBuddy · Codex Desktop · Cursor**.
+Works with **Claude Code · CodeBuddy · WorkBuddy · Codex Desktop · Cursor**.
 
 > ⚠️ **Cursor is a partial case.** Its `preCompact` hook is [documented](https://cursor.com/docs/agent/third-party-hooks) as *observational* — it fires when compaction happens but cannot inject a prompt or block the compaction. So on Cursor, this plugin can only *warn* you (via `user_message`) that compaction is in progress; it cannot auto-write the summary. Run `/session-summarizer` manually at ~60-70% context. See [Cursor limitations](#cursor-limitations-important) below.
 
@@ -22,7 +22,6 @@ Works with **Claude Code · Claude Internal · CodeBuddy · WorkBuddy · Codex D
 | IDE | Manual `/session-summarizer` | Auto-triggered summary before compaction |
 |---|---|---|
 | Claude Code | ✅ | ✅ (real inject) |
-| Claude Internal (腾讯) | ✅ | ✅ (real inject) |
 | CodeBuddy | ✅ | ✅ (real inject) |
 | WorkBuddy | ✅ | ✅ (real inject) |
 | Codex Desktop | ✅ | ✅ (real inject; needs `/hooks` trust on first run) |
@@ -162,7 +161,7 @@ session-summarizer <command> [options]
   doctor      Diagnostics (Node/Python detection, layout)
 
 Options:
-  --target claude-code,claude-internal,cursor,codebuddy,workbuddy,codex
+  --target claude-code,cursor,codebuddy,workbuddy,codex
   --dry-run          Print plan without touching disk
   --force            Overwrite existing slash-command files
   --json             Machine-readable output
@@ -197,7 +196,7 @@ Cursor is different from every other supported host. **Read this before assuming
 **Why we didn't build "stop-hook + SQLite polling" auto-injection**:
 Cursor's `stop` hook does support a `followup_message` field that could theoretically auto-inject `/session-summarizer` after every N turns. But this would require reading Cursor's undocumented SQLite chat storage (`state.vscdb`, schema is community-reversed) to estimate context usage, which is brittle across Cursor upgrades. If you want that path, open an issue — we can add it as an opt-in flag if there's demand.
 
-**Other hosts** (Claude Code / Claude Internal / CodeBuddy / WorkBuddy / Codex Desktop) don't have this limitation — their `PreCompact` hooks accept `additionalContext` and can genuinely make the model write a summary before compaction proceeds.
+**Other hosts** (Claude Code / CodeBuddy / WorkBuddy / Codex Desktop) don't have this limitation — their `PreCompact` hooks accept `additionalContext` and can genuinely make the model write a summary before compaction proceeds.
 
 ---
 
