@@ -1,63 +1,64 @@
 ---
-description: 按 Anthropic 九段式模板总结当前会话，落盘到 <project>/.claude/sessions/
-argument-hint: [--dry-run] [--title "自定义标题"]
+description: Summarize the current session in the 9-section template and persist to <project>/.claude/sessions/
+argument-hint: [--dry-run]
 allowed-tools: Read, Write, Bash(python:*), Bash(python3:*)
 ---
 
-你需要按九段式总结当前整个会话，落盘为一份可跨 session / 跨 IDE 复用的 markdown。
+Produce a full 9-section summary of the current session and persist it as a resumable markdown file. This lets you switch IDE or start a new session and pick up exactly where you left off.
 
-## 第 1 步：加载模板
+## Step 1 — Load the template
 
-用 Read 工具读取以下文件，严格遵守其中所有规则（尤其是 §6 逐字保留用户消息、§9 必须引用最近一条用户消息）：
+Use the Read tool on this file and obey every rule in it (especially §6 must preserve user messages verbatim, and §9 must quote the most recent user message):
 
 ```
 {{PLUGIN_ROOT}}/templates/nine-section-template.md
 ```
 
-## 第 2 步：产出九段式内容
+## Step 2 — Produce the 9 sections
 
-按模板 9 个段落顺序完整输出。**不要输出到聊天窗口给用户看**，直接用 Write 工具写到一个临时 .md 文件里：
+Follow the template exactly. **Don't print the sections into chat** — write them straight to a temp `.md` file using the Write tool:
 
 - macOS / Linux: `/tmp/session-summary-<session_id>.md`
 - Windows: `%TEMP%\session-summary-<session_id>.md`
 
-**关键约束**：
-- 每段 `## N. Title / 中文` 标题必须一字不差，否则校验会失败
-- §6 里逐字保留所有非 tool-result 的用户消息，不要改写、翻译、合并
-- §9 必须引用最近一条用户消息原话；如果最近消息没暗示下一步，写"待用户确认"
-- 不要凭空编造用户没要求过的任务
+Constraints:
+- Every `## N. Title / 中文` heading must match the template exactly (validation will reject otherwise)
+- §6 keeps every non-tool-result user message verbatim — no rewriting, translating, or merging
+- §9 must quote a short excerpt from the most recent user message; if that message doesn't imply a next step, write `awaiting user`
+- Never invent tasks the user didn't ask for
 
-## 第 3 步：落盘
+## Step 3 — Persist
 
-调用 write_summary.py 落盘并更新 index。请使用你所在平台可用的 Python 命令（`python3` 优先，其次 `python`）：
+Call `write_summary.py` to validate + write to disk + update `index.md`. Use whichever Python command exists on this host (`python3` first, then `python`):
 
 ```bash
 python3 "{{PLUGIN_ROOT}}/scripts/write_summary.py" \
-  --session-id "<当前 session_id>" \
-  --project "<当前项目根>" \
-  --content "<第 2 步的临时文件路径>" \
+  --session-id "<current session id>" \
+  --project "<current project root>" \
+  --content "<path to the temp file from step 2>" \
   --trigger manual \
-  --ide "<当前 IDE，例如 claude-code|cursor|codebuddy|workbuddy|codex>"
+  --ide "<current IDE key, e.g. claude-code|claude-internal|cursor|codebuddy|workbuddy|codex>"
 ```
 
-如果用户传了 `--title "xxx"`，把 `--title xxx` 也加上。
+If the user passed `--dry-run`, **skip this step**. Instead, print the temp-file path so the user can inspect it themselves.
 
-如果用户传了 `--dry-run`，**跳过第 3 步**，只把第 2 步生成的文件路径打印给用户，让用户自己检查。
+## Step 4 — Report back
 
-## 第 4 步：确认
+Once persisted, tell the user briefly:
+- Written path
+- Sections OK (from the `write_summary.py` JSON)
+- Pending task count (from §7)
+- `index.md` updated
 
-落盘成功后向用户简短汇报：
-- 文件路径
-- 九段是否齐全（write_summary.py 会返回校验结果）
-- 待办任务数量（从 §7 计数）
-- index.md 已更新
+## Arguments
 
-## 参数解析
+User input: `$ARGUMENTS`. Supported:
+- `--dry-run` — skip the persist step
 
-用户输入 `$ARGUMENTS`。支持：
-- `--dry-run`：不落盘
-- `--title "任意标题"`：覆盖自动生成的 slug
+## Project root
 
-## 项目根定位
+Prefer `git rev-parse --show-toplevel`; fall back to the current working directory. The output directory is always `<project-root>/.claude/sessions/` — do not vary by IDE (cross-IDE handoff depends on a stable path).
 
-优先用 `git rev-parse --show-toplevel`，失败则用当前 `cwd`。落盘目录固定 `<项目根>/.claude/sessions/`（不要因为 IDE 不同就换目录，跨 IDE 复用是核心诉求）。
+## Filename
+
+`write_summary.py` builds the filename as `YYYY-MM-DD-<ide>-HHMM.md`. Do not try to override it — collisions inside the same minute get `-r2/-r3` suffixes automatically.

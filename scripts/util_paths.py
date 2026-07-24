@@ -45,50 +45,23 @@ def sessions_dir(project_root: Path) -> Path:
     return d
 
 
-_STOPWORDS = {
-    "the", "a", "an", "of", "to", "for", "and", "or", "in", "on", "with", "is",
-    "are", "was", "were", "be", "been", "this", "that", "it", "we", "i", "you",
-    "please", "make", "add", "do", "want",
-    "的", "一个", "想", "想要", "要", "帮", "我",
-}
-
-
-def make_slug(title_text: str, max_words: int = 3, max_chars: int = 25) -> str:
-    """Extract a compact slug (up to 3 words, ≤25 chars) — CJK/English friendly."""
-    text = title_text.strip()
-    if not text:
-        return "session"
-
-    text = re.sub(r"[^\w一-鿿\s-]", " ", text, flags=re.UNICODE)
-    tokens: list[str] = []
-    for tok in text.split():
-        tok_lower = tok.lower()
-        if tok_lower in _STOPWORDS:
-            continue
-        tokens.append(tok_lower)
-        if len(tokens) >= max_words:
-            break
-
-    if not tokens:
-        return "session"
-
-    slug = "-".join(tokens)
-    slug = re.sub(r"-+", "-", slug).strip("-")
-    return slug[:max_chars] or "session"
-
-
 def build_filename(
     project_root: Path,
-    session_id: str,
-    title_text: str,
+    ide: str,
     now: _dt.datetime | None = None,
 ) -> Path:
-    """`YYYY-MM-DD-<slug>.md`; collisions get -r2/-r3 suffix."""
+    """`YYYY-MM-DD-<ide>-HHMM.md`; collisions get -r2/-r3 suffix.
+
+    No slug from user content — filename carries only unambiguous, stable
+    facts: the date, which IDE triggered it, and the minute-precision time.
+    Same-day / same-IDE / same-minute collisions (rare) fall back to -rN.
+    """
     now = now or _dt.datetime.now()
     date = now.strftime("%Y-%m-%d")
-    slug = make_slug(title_text)
+    time_hm = now.strftime("%H%M")
+    ide_slug = re.sub(r"[^a-z0-9\-]+", "-", (ide or "unknown").lower()).strip("-") or "unknown"
 
-    base = sessions_dir(project_root) / f"{date}-{slug}.md"
+    base = sessions_dir(project_root) / f"{date}-{ide_slug}-{time_hm}.md"
     if not base.exists():
         return base
 
@@ -104,7 +77,6 @@ def build_filename(
 def build_frontmatter(
     session_id: str,
     project_root: Path,
-    title_text: str,
     trigger: str,
     ide: str,
     section_word_count: int,
@@ -117,7 +89,6 @@ def build_frontmatter(
         f"session_id: {session_id}",
         f"timestamp: {now.isoformat(timespec='seconds')}",
         f"project: {project_root.as_posix()}",
-        f"title: {title_text!r}",
         f"trigger: {trigger}",
         f"ide: {ide}",
         f"word_count: {section_word_count}",

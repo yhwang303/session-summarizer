@@ -59,21 +59,6 @@ def _validate_nine_sections(content: str) -> tuple[bool, list[str]]:
     return not missing, missing
 
 
-def _extract_title(content: str, fallback: str) -> str:
-    """从 §1 首行抓一个候选标题。"""
-    m = re.search(
-        r"^##\s+1\.\s+Primary Request and Intent[^\n]*\n+((?:[^\n]+\n?)+)",
-        content,
-        flags=re.MULTILINE,
-    )
-    if not m:
-        return fallback
-    first_line = m.group(1).splitlines()[0] if m.group(1).strip() else fallback
-    first_line = re.sub(r"^[-*•\s]+", "", first_line).strip()
-    first_line = re.sub(r"（.*?$", "", first_line).strip()
-    return first_line or fallback
-
-
 def _count_pending(content: str) -> int:
     m = re.search(
         r"^##\s+7\.\s+Pending Tasks[^\n]*\n(.*?)(?=^##\s+8\.\s)",
@@ -125,10 +110,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--project", required=True, help="Project root or any cwd inside it.")
     parser.add_argument("--content", required=True, help="Path to markdown file with 9 sections.")
-    parser.add_argument("--title")
     parser.add_argument("--trigger", default="manual", choices=["manual", "auto"])
     parser.add_argument("--ide", default="")
     parser.add_argument("--dry-run", action="store_true")
+    # --title kept for backward compat with older slash-command definitions;
+    # ignored so filename stays predictable.
+    parser.add_argument("--title", default=None, help="(deprecated, ignored)")
     args = parser.parse_args(argv)
 
     log = state_log_path(args.session_id)
@@ -148,12 +135,11 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     project_root = locate_project_root(args.project)
-    title_text = (args.title or _extract_title(body, "session")).strip() or "session"
     pending = _count_pending(body)
     ide = args.ide or detect_ide()
 
     if args.dry_run:
-        target = build_filename(project_root, args.session_id, title_text)
+        target = build_filename(project_root, ide)
         result = {
             "dry_run": True,
             "would_write": str(target),
@@ -164,11 +150,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
-    target = build_filename(project_root, args.session_id, title_text)
+    target = build_filename(project_root, ide)
     frontmatter = build_frontmatter(
         session_id=args.session_id,
         project_root=project_root,
-        title_text=title_text,
         trigger=args.trigger,
         ide=ide,
         section_word_count=len(body.split()),
@@ -180,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     rel_from_index = target.name
     entry = (
         f"- [{datetime.now().strftime('%Y-%m-%d %H:%M')}] "
-        f"[{title_text}]({rel_from_index}) — {args.trigger} · {ide} · 待办: {pending}"
+        f"[{rel_from_index}]({rel_from_index}) — {args.trigger} · {ide} · 待办: {pending}"
     )
     _update_index(project_root, entry)
 
@@ -193,7 +178,6 @@ def main(argv: list[str] | None = None) -> int:
         "pending_count": pending,
         "ide": ide,
         "trigger": args.trigger,
-        "title": title_text,
     }
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
