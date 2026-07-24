@@ -225,9 +225,6 @@ No. Only on `auto` triggers. Manual compaction means you know what you're doing.
 **Q: Will running `/session-summarizer` twice on the same day overwrite the first summary?**
 No. Filename includes the minute (`YYYY-MM-DD-<ide>-HHMM.md`), so different times produce different files. Same-minute collisions get a `-r2` suffix. Every summary is preserved.
 
-**Q: I upgraded from an older version and my summaries used to live in `.claude/sessions/`. What now?**
-Just move the folder: `mv .claude/sessions summary/sessions` (macOS/Linux) or the equivalent on Windows. New writes will go to the new location automatically. Nothing else needs changing.
-
 **Q: Does this work with Codex CLI (the terminal one, not the desktop app)?**
 No. Codex's Rust CLI doesn't expose user-level hooks. Codex Desktop is supported. CLI users can still run `/session-summarizer` manually.
 
