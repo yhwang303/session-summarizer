@@ -11,7 +11,22 @@
 
 **这个插件做什么**：注册一个 `PreCompact` hook，在系统真正 compact **之前**触发。它把 Anthropic 官方九段式模板（来自 Claude Code 内部的 `BASE_COMPACT_PROMPT`）注入到模型上下文里，让当前会话的模型**先**按九段式写一份完整总结，落盘到 `<项目>/.claude/sessions/`，然后再让系统继续 compact。
 
-支持 **Claude Code · Cursor · CodeBuddy · WorkBuddy · Codex 桌面版**。
+支持 **Claude Code · Claude Internal · CodeBuddy · WorkBuddy · Codex 桌面版 · Cursor**。
+
+> ⚠️ **Cursor 是特例**。它的 `preCompact` hook 被官方文档明确定义为**仅观察型**（[Cursor 官方文档](https://cursor.com/docs/agent/third-party-hooks)）——压缩发生时会触发，但**不能注入 prompt、不能阻断压缩**。所以在 Cursor 上，本插件只能通过 `user_message` **提示**你压缩正在发生，无法自动写摘要。请在上下文占用约 60-70% 时手动跑 `/session-summarizer`。详见下方 [Cursor 的特殊情况](#cursor-的特殊情况重要)。
+
+---
+
+## IDE 支持矩阵
+
+| IDE | 手动 `/session-summarizer` | 压缩前自动摘要 |
+|---|---|---|
+| Claude Code | ✅ | ✅ 真注入 |
+| Claude Internal（腾讯） | ✅ | ✅ 真注入 |
+| CodeBuddy | ✅ | ✅ 真注入 |
+| WorkBuddy | ✅ | ✅ 真注入 |
+| Codex 桌面版 | ✅ | ✅ 真注入（首次需在 `/hooks` 面板信任脚本） |
+| **Cursor** | ✅ | ⚠️ **仅提示**——见下 |
 
 ---
 
@@ -144,11 +159,42 @@ session-summarizer <command> [options]
   doctor      环境诊断（Node/Python 探测）
 
 Options:
-  --target claude-code,cursor,codebuddy,workbuddy,codex
+  --target claude-code,claude-internal,cursor,codebuddy,workbuddy,codex
   --dry-run          只打印计划，不动磁盘
   --force            覆盖已存在的 slash 命令文件
   --json             机器可读输出
 ```
+
+---
+
+## Cursor 的特殊情况（重要）
+
+Cursor 跟其他所有支持的宿主都不一样。**装之前请务必读这一段，避免误期待。**
+
+**Cursor `preCompact` hook 做什么**（引自 [Cursor 官方文档](https://cursor.com/docs/agent/third-party-hooks)）：
+- 在自动压缩发生时触发
+- stdin 可以拿到 `context_usage_percent`、`is_first_compaction`、`messages_to_compact` 等有用字段
+- **stdout 只接受 `user_message`**——没有 `additionalContext`、没有 `decision`、没有 `block`
+- 官方原文：*"an observational hook that cannot block or modify the compaction behavior"*
+
+**这对 session-summarizer 意味着什么**：
+- Hook 触发时，Cursor 已经**决定要压缩了**——细节正在此刻丢失，不是"即将丢失"
+- Hook 无法要求模型先写摘要
+- 我们能做的最多是：显示一条 `user_message` 提示你压缩正在发生
+
+**我们在 Cursor 上具体装了什么**：
+- `/session-summarizer` slash 命令装到 `~/.cursor/skills/session-summarizer/SKILL.md`（供你手动跑）
+- 注册一条 `preCompact` hook：触发时通过 `user_message` 提醒你**下次要更早**（约 60-70% 上下文时）跑 `/session-summarizer`，别等自动压缩
+
+**Cursor 上的推荐工作流**：
+1. 长会话中**主动**跑 `/session-summarizer`——不要等压缩提醒
+2. 看到压缩提醒时，就把当前 session 视为"已经有损"，靠之前手写的摘要文件恢复
+3. 要换 IDE 接手前，先跑一次 `/session-summarizer` 再切
+
+**为什么没做"stop hook + SQLite 轮询"的自动注入方案**：
+Cursor 的 `stop` hook 里有 `followup_message` 字段，理论上可以每 N 轮自动塞一次 `/session-summarizer`。但要判断"何时该塞"，得读 Cursor 未公开的 SQLite 聊天记录数据库（`state.vscdb`，schema 是社区逆向的），Cursor 升级就可能失效。默认没做——如果你想要这条路径，欢迎提 Issue，可以做成可选开关。
+
+**其他宿主**（Claude Code / Claude Internal / CodeBuddy / WorkBuddy / Codex 桌面版）**没有这个限制**——它们的 `PreCompact` hook 接受 `additionalContext`，能真正让模型在压缩前写完摘要。
 
 ---
 
@@ -175,6 +221,12 @@ Options:
 
 **Q：支持 Codex CLI（终端版本，不是桌面版）吗？**
 不支持。Codex 的 Rust CLI 没暴露用户级 hook API。Codex 桌面版可以。CLI 用户可以手动跑 `/session-summarizer`。
+
+**Q：Cursor 上的自动路径跟其他宿主一样好用吗？**
+不一样——见 [Cursor 的特殊情况](#cursor-的特殊情况重要)。Cursor 上 hook 只能**提示**你，不能自动写摘要。手动 `/session-summarizer` 和别处完全一样能用。如果你重度使用 Cursor，养成主动在 60-70% 上下文时跑一次的习惯。
+
+**Q：为什么不用 Cursor 的 `stop` hook 每 N 轮自动塞 `/session-summarizer`？**
+技术上可以走 `followup_message` 实现，但需要读 Cursor 未公开的 SQLite 聊天数据库来估算上下文占用，schema 会在 Cursor 升级时失效。默认没做——想要开个 Issue，可以做成可选开关。
 
 **Q：自动触发的摘要被截断了怎么办？**
 Hook 只注入 prompt，实际写入靠模型。如果触发时上下文已经非常紧张，输出可能不完整。最佳实践：长时间的设计/调试会话，在到 80% 之前手动跑一次 `/session-summarizer` 备份。
