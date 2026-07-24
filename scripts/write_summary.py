@@ -7,10 +7,20 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import re
 import sys
 from pathlib import Path
+
+# Windows 默认 stdout/stderr 常是 gbk，遇到 CJK 文件名/标题会 UnicodeEncodeError。
+# 统一强制 utf-8。
+for _stream_name in ("stdout", "stderr"):
+    _s = getattr(sys, _stream_name)
+    try:
+        _s.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError):
+        setattr(sys, _stream_name, io.TextIOWrapper(_s.buffer, encoding="utf-8", newline=""))
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from util_paths import (  # noqa: E402

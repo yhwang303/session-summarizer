@@ -53,8 +53,8 @@ _STOPWORDS = {
 }
 
 
-def make_slug(title_text: str, max_words: int = 5, max_chars: int = 40) -> str:
-    """从任意一段文本抽 3-5 词 slug；中英文都尽量友好。"""
+def make_slug(title_text: str, max_words: int = 3, max_chars: int = 25) -> str:
+    """Extract a compact slug (up to 3 words, ≤25 chars) — CJK/English friendly."""
     text = title_text.strip()
     if not text:
         return "session"
@@ -83,13 +83,12 @@ def build_filename(
     title_text: str,
     now: _dt.datetime | None = None,
 ) -> Path:
-    """`YYYY-MM-DD-<slug>-<sid4>.md`；已存在则加 -r2/-r3 后缀。"""
+    """`YYYY-MM-DD-<slug>.md`; collisions get -r2/-r3 suffix."""
     now = now or _dt.datetime.now()
     date = now.strftime("%Y-%m-%d")
-    sid4 = (session_id or "sess")[:4] or "sess"
     slug = make_slug(title_text)
 
-    base = sessions_dir(project_root) / f"{date}-{slug}-{sid4}.md"
+    base = sessions_dir(project_root) / f"{date}-{slug}.md"
     if not base.exists():
         return base
 
