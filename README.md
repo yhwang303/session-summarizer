@@ -112,6 +112,8 @@ Output goes to a consistent path regardless of IDE — that's the whole point:
 └── 2026-07-23-cursor-2210.md
 ```
 
+**Filename format**: `YYYY-MM-DD-<ide>-HHMM.md` — date + which IDE fired the summary + minute-precision time. Same IDE / same minute collisions get a `-r2` / `-r3` suffix automatically. **Summaries are never overwritten** — every trigger produces a fresh file, so you have a full history for the project.
+
 Every summary follows Claude Code's official `BASE_COMPACT_PROMPT`:
 
 1. **Primary Request and Intent** — every explicit user ask, in order
@@ -219,6 +221,12 @@ Your call. If not, add `summary/sessions/` to `.gitignore` (this repo's `.gitign
 
 **Q: Does the hook fire when I manually run `/compact`?**
 No. Only on `auto` triggers. Manual compaction means you know what you're doing.
+
+**Q: Will running `/session-summarizer` twice on the same day overwrite the first summary?**
+No. Filename includes the minute (`YYYY-MM-DD-<ide>-HHMM.md`), so different times produce different files. Same-minute collisions get a `-r2` suffix. Every summary is preserved.
+
+**Q: I upgraded from an older version and my summaries used to live in `.claude/sessions/`. What now?**
+Just move the folder: `mv .claude/sessions summary/sessions` (macOS/Linux) or the equivalent on Windows. New writes will go to the new location automatically. Nothing else needs changing.
 
 **Q: Does this work with Codex CLI (the terminal one, not the desktop app)?**
 No. Codex's Rust CLI doesn't expose user-level hooks. Codex Desktop is supported. CLI users can still run `/session-summarizer` manually.
