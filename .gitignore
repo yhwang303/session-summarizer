@@ -26,4 +26,4 @@ Thumbs.db
 *.swp
 
 # Never commit user session outputs
-.claude/sessions/
+summary/sessions/

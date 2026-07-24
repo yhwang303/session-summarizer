@@ -1,5 +1,5 @@
 ---
-description: Summarize the current session in the 9-section template and persist to <project>/.claude/sessions/
+description: Summarize the current session in the 9-section template and persist to <project>/summary/sessions/
 argument-hint: [--dry-run]
 allowed-tools: Read, Write, Bash(python:*), Bash(python3:*)
 ---
@@ -57,7 +57,7 @@ User input: `$ARGUMENTS`. Supported:
 
 ## Project root
 
-Prefer `git rev-parse --show-toplevel`; fall back to the current working directory. The output directory is always `<project-root>/.claude/sessions/` — do not vary by IDE (cross-IDE handoff depends on a stable path).
+Prefer `git rev-parse --show-toplevel`; fall back to the current working directory. The output directory is always `<project-root>/summary/sessions/` — do not vary by IDE (cross-IDE handoff depends on a stable path).
 
 ## Filename
 

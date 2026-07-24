@@ -9,7 +9,7 @@
 
 **The problem**: When your session hits ~85% context, Claude Code (and every IDE that follows its spec) auto-compacts your history. The default compaction summary is lossy — verbatim user messages, load-bearing code snippets, and half-solved bugs often disappear. If you switch IDE (Claude Code → Cursor → Codex) or open a new session, there's nothing to hand off.
 
-**What this does**: A `PreCompact` hook fires **before** the system compacts. It injects Anthropic's 9-section template (from Claude Code's own `BASE_COMPACT_PROMPT`) into the model's context, so the model writes a full structured summary **first**, saves it to `<project>/.claude/sessions/`, then lets compaction proceed.
+**What this does**: A `PreCompact` hook fires **before** the system compacts. It injects Anthropic's 9-section template (from Claude Code's own `BASE_COMPACT_PROMPT`) into the model's context, so the model writes a full structured summary **first**, saves it to `<project>/summary/sessions/`, then lets compaction proceed.
 
 Works with **Claude Code · Claude Internal · CodeBuddy · WorkBuddy · Codex Desktop · Cursor**.
 
@@ -105,10 +105,11 @@ Two triggers, one output shape:
 Output goes to a consistent path regardless of IDE — that's the whole point:
 
 ```
-<project>/.claude/sessions/
-├── index.md                                          # append-only, human-readable
-├── 2026-07-23-session-summarizer-plugin-a3f2.md
-└── 2026-07-22-eval-dataset-design-1b8c.md
+<project>/summary/sessions/
+├── index.md                          # append-only, human-readable
+├── 2026-07-24-claude-code-1430.md
+├── 2026-07-24-codebuddy-1615.md
+└── 2026-07-23-cursor-2210.md
 ```
 
 Every summary follows Claude Code's official `BASE_COMPACT_PROMPT`:
@@ -132,19 +133,19 @@ Section 6 is what makes cross-session resumption safe: you can hand a new sessio
 ```
 Session A (Claude Code)                    Session B (Cursor / Codex / anything)
 ─────────────────────                      ───────────────────────────────────
-context hits 80% context                       "Read .claude/sessions/2026-07-23-*.md
+context hits 80% context                       "Read summary/sessions/2026-07-24-*.md
       │                                        and continue where I left off"
       ▼
 PreCompact hook fires                                       │
       │                                                     ▼
 9-section summary written                          Model picks up with §6
-to .claude/sessions/                              (verbatim user asks) + §8
+to summary/sessions/                              (verbatim user asks) + §8
       │                                          (what was in flight) + §9
       ▼                                          (next step)
 IDE compacts normally
 ```
 
-The output directory is fixed at `.claude/sessions/` **regardless of which IDE triggered it**. That's the design — cross-IDE handoff would be impossible with per-IDE paths.
+The output directory is fixed at `summary/sessions/` **regardless of which IDE triggered it**. That's the design — cross-IDE handoff would be impossible with per-IDE paths.
 
 ---
 
@@ -211,10 +212,10 @@ Cursor's `stop` hook does support a `followup_message` field that could theoreti
 ## FAQ
 
 **Q: Where do summaries live?**
-`<project>/.claude/sessions/`. Same path across every IDE — that's what makes cross-IDE handoff possible.
+`<project>/summary/sessions/`. Same path across every IDE — that's what makes cross-IDE handoff possible.
 
-**Q: Should I commit `.claude/sessions/` to git?**
-Your call. If not, add `.claude/sessions/` to `.gitignore` (this repo's `.gitignore` already excludes it).
+**Q: Should I commit `summary/sessions/` to git?**
+Your call. If not, add `summary/sessions/` to `.gitignore` (this repo's `.gitignore` already excludes it).
 
 **Q: Does the hook fire when I manually run `/compact`?**
 No. Only on `auto` triggers. Manual compaction means you know what you're doing.

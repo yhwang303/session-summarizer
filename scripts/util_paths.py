@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 PROJECT_MARKERS = (".git", ".hg", ".svn", "pyproject.toml", "package.json", "Cargo.toml")
-SESSIONS_SUBDIR = Path(".claude") / "sessions"
+SESSIONS_SUBDIR = Path("summary") / "sessions"
 
 
 def locate_project_root(cwd: str | os.PathLike) -> Path:

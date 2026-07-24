@@ -163,7 +163,7 @@ def main() -> int:
             # nudging them to run /session-summarizer *earlier* next time.
             usage = payload.get("context_usage_percent")
             first = bool(payload.get("is_first_compaction"))
-            sessions_dir = f"{project_root.as_posix()}/.claude/sessions/"
+            sessions_dir = f"{project_root.as_posix()}/summary/sessions/"
 
             head = "ℹ️" if first else "⚠️"
             usage_str = f"（上下文 {usage}%）" if usage is not None else ""

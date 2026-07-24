@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""列出当前项目 .claude/sessions/ 下所有九段式总结。
+"""列出当前项目 summary/sessions/ 下所有九段式总结。
 
 用法：
   python list_summaries.py [--project <cwd>] [--json]
